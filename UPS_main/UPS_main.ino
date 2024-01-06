@@ -13,6 +13,8 @@ float pri_v = 0;//input
 float sec_v = 0;//input
 float out_v = 0;//set static value for testing
 
+int ac_ok = 110;
+
 
 
 bool peak_hours = 0;//used to track if we are in peak hours range. 1 = true
@@ -40,11 +42,6 @@ int sec_v_pin = A1;//input pin, change to analog pin for actuall readings
 int ph1_pin = 6;//for testing and demo only
 int ph2_pin = 7;//for testing and demo only
 
-float vratio1 = 0.005;//AC vout/vin ratio
-float vratio2 = 0.0715;//DC vout/vin ratio
-float get_v_input(int source){//function used to measure the voltage from input source1 and source2. The input pin of either source is passed to the function.
-  //setup function so that it can read either battery, primary, or secondary voltages depending on variable passed to function 
-}
 
 
 void setup() {
@@ -57,10 +54,10 @@ void setup() {
   pinMode(sec_v_pin, INPUT);
   pinMode(out_v_pin, INPUT);
   
-  pinMode(relay1, OUTPUT);
-  pinMode(relay2, OUTPUT);
-  pinMode(relay4, OUTPUT);
-  pinMode(relay5, OUTPUT);
+  pinMode(relay1, OUTPUT);//switch between primary and secondary
+  pinMode(relay2, OUTPUT);//controls peak hours/main shut off
+  pinMode(relay4, OUTPUT);//controls inverter/main shut off
+  pinMode(relay5, OUTPUT);//turns charger ON OFF
   
   
   //For testing
@@ -76,14 +73,14 @@ void setup() {
   //get time from RTC
   
   
-  batt_v = digitalRead(batt_v_pin);//read battery voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_v_input() function
-  pri_v = digitalRead(pri_v_pin);//read primary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_v_input() function
-  sec_v = digitalRead(sec_v_pin);//read secondary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on, for actuall reading we will call the get_v_input() function
-  while(batt_v < 1){//test to see if battery is good or bad, if bad then display error on screen and do not initiate startup. For testing purposes 0 is OFF and 1 is ON.
+  batt_v = get_vtg(batt_v_pin);//read battery voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_vtg() function
+  pri_v = get_vtg(pri_v_pin);//read primary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_vtg() function
+  sec_v = get_vtg(sec_v_pin);//read secondary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on, for actuall reading we will call the get_vtg() function
+  while(batt_v < 10){//test to see if battery is good or bad, if bad then display error on screen and do not initiate startup. For testing purposes 0 is OFF and 1 is ON.
     Serial.println("Battery bad. Replace Imediately"); 
     digitalWrite(relay2, 0);
     digitalWrite(relay4, 0);
-    batt_v = digitalRead(batt_v_pin);
+    batt_v = get_vtg(batt_v_pin);
     
   }
 
@@ -105,10 +102,10 @@ void setup() {
 
 void loop() {
   
-  Serial.print("loop");
-  batt_v = digitalRead(batt_v_pin);
-  pri_v = digitalRead(pri_v_pin);
-  sec_v = digitalRead(sec_v_pin);
+  //Serial.print("loop");
+  batt_v = get_vtg(batt_v_pin);
+  pri_v = get_vtg(pri_v_pin);
+  sec_v = get_vtg(sec_v_pin);
 
   //for testing only, these three led's will get replaced by the voltages shown on the display
 //  digitalWrite(pri_led, pri_v);
@@ -133,7 +130,7 @@ void loop() {
   tft.print("Peak Hours Time:"); tft.print("4pm-8pm");
 
   //in the following if statements, we use simple inputs to simulate we are in peak hours mode. Actual code will compare the current time with the peak hours time range.
-  if(pri_v == 1 && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using primary input. Outside of any peak hours range
+  if(pri_v > ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using primary input. Outside of any peak hours range
     digitalWrite(relay1, 0);
     digitalWrite(relay2, 1);
     digitalWrite(relay5, 0);
@@ -143,7 +140,7 @@ void loop() {
     tft.print("OUT:"); tft.print(out_v); tft.println("S1.1");
   }
 
-  else if(pri_v == 0 && sec_v == 1 && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using secondary input. Outside of any peak hours range
+  else if(pri_v < ac_ok && sec_v > ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using secondary input. Outside of any peak hours range
     digitalWrite(relay1, 1);
     digitalWrite(relay5, 0);
     Serial.println("S2.1");
@@ -152,7 +149,7 @@ void loop() {
     tft.print("OUT:"); tft.print(out_v); tft.println("S2.1");
   }
 
-  else if(pri_v == 0 && sec_v == 0 && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using battery. Outside of any peak hours range
+  else if(pri_v < ac_ok && sec_v < ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using battery. Outside of any peak hours range
     digitalWrite(relay1, 1);//keep relay connected to primary input
     digitalWrite(relay5, 0);
     Serial.println("Batt1");
@@ -173,8 +170,8 @@ void loop() {
     digitalWrite(relay1, 0);
     digitalWrite(relay2, 1);
     digitalWrite(relay5, 1);//turn off charger
-    if(pri_v == 0){
-      if(sec_v == 0){
+    if(pri_v < ac_ok){
+      if(sec_v < ac_ok){
         digitalWrite(relay1, 0);//keep relay 1 connected to primary
         Serial.println("Batt3");
         tft.setCursor(0, 75);
