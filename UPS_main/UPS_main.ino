@@ -2,11 +2,9 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
 
-// For the Adafruit shield, these are the default.
 #define TFT_DC 9
 #define TFT_CS 10
 #define TFT_RST 8
-
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
@@ -52,12 +50,7 @@ float get_v_input(int source){//function used to measure the voltage from input 
 void setup() {
   Serial.begin(115200);
   analogReference(AR_INTERNAL);  // set ADC positive reference voltage to 1.5V (internal)
-
-  pinMode(TFT_CS, OUTPUT);//setup display
-  digitalWrite(TFT_CS, HIGH);//set display CS high(OFF) initially
-  tft.begin();//initiate display
-  tft.setRotation(3);//set screen orientation
-  tft.fillScreen(ILI9341_BLACK);
+  displaySetup();
  
   pinMode(batt_v_pin, INPUT);//for testing purposes use pull down resistors on these four pins
   pinMode(pri_v_pin, INPUT);
