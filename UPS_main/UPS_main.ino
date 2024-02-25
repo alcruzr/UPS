@@ -1,10 +1,21 @@
 #include "SPI.h"
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
+#include <ZMPT101B.h>
 
 #define TFT_DC 9
 #define TFT_CS 10
 #define TFT_RST 8
+
+#define SENSITIVITYpri 136.25f
+#define SENSITIVITYsec 139.0f
+
+
+
+
+
+
+
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
@@ -30,7 +41,7 @@ bool peak_hours = 0;//used to track if we are in peak hours range. 1 = true
 //int ph1_led = 8;//output pin
 //int ph2_led = 9;//output pin
 
-int relay1 = 1;
+int relay1 = 5;
 int relay2 = 2;
 int relay4 = 3;
 int relay5 = 4;
@@ -43,10 +54,14 @@ int ph1_pin = 6;//for testing and demo only
 int ph2_pin = 7;//for testing and demo only
 
 
+ZMPT101B voltageSensorPri(pri_v_pin, 60.0);
+ZMPT101B voltageSensorSec(sec_v_pin, 60.0);
+
 
 void setup() {
   Serial.begin(115200);
-  analogReference(AR_INTERNAL);  // set ADC positive reference voltage to 1.5V (internal)
+  voltageSensorPri.setSensitivity(SENSITIVITYpri);
+  voltageSensorSec.setSensitivity(SENSITIVITYsec);
   displaySetup();
  
   pinMode(batt_v_pin, INPUT);//for testing purposes use pull down resistors on these four pins
@@ -73,14 +88,17 @@ void setup() {
   //get time from RTC
   
   
-  batt_v = get_vtg(batt_v_pin);//read battery voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_vtg() function
-  pri_v = get_vtg(pri_v_pin);//read primary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_vtg() function
-  sec_v = get_vtg(sec_v_pin);//read secondary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on, for actuall reading we will call the get_vtg() function
+  batt_v = get_vtgDC();//read battery voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_vtg() function
+  pri_v = voltageSensorPri.getRmsVoltage();//read primary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on), for actuall reading we will call the get_vtg() function
+  sec_v = voltageSensorSec.getRmsVoltage();//read secondary voltage, for testing purposes we use digitalRead and input will either be 0(off) or 1(on, for actuall reading we will call the get_vtg() function
   while(batt_v < 10){//test to see if battery is good or bad, if bad then display error on screen and do not initiate startup. For testing purposes 0 is OFF and 1 is ON.
     Serial.println("Battery bad. Replace Imediately"); 
+    tft.setCursor(0, 0);
+    tft.setTextColor(ILI9341_GREEN,ILI9341_BLACK);  tft.setTextSize(3);
+    tft.print("Battery Below Good Voltage");
     digitalWrite(relay2, 0);
     digitalWrite(relay4, 0);
-    batt_v = get_vtg(batt_v_pin);
+    batt_v = get_vtgDC();
     
   }
 
@@ -94,18 +112,23 @@ void setup() {
   digitalWrite(relay2, 1);
   digitalWrite(relay4, 1);
   digitalWrite(relay5, 0);
-  
+
   Serial.print("Initiating...");
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setCursor(0, 0);
+  tft.setTextColor(ILI9341_GREEN,ILI9341_BLACK);  tft.setTextSize(3);
+  tft.print("Initiating...");
   delay(3000);
+  tft.fillScreen(ILI9341_BLACK);
 }
 
 
 void loop() {
   
   //Serial.print("loop");
-  batt_v = get_vtg(batt_v_pin);
-  pri_v = get_vtg(pri_v_pin);
-  sec_v = get_vtg(sec_v_pin);
+  batt_v = get_vtgDC();
+  pri_v = voltageSensorPri.getRmsVoltage();
+  sec_v = voltageSensorSec.getRmsVoltage();
 
   //for testing only, these three led's will get replaced by the voltages shown on the display
 //  digitalWrite(pri_led, pri_v);
@@ -131,7 +154,7 @@ void loop() {
 
   //in the following if statements, we use simple inputs to simulate we are in peak hours mode. Actual code will compare the current time with the peak hours time range.
   if(pri_v > ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using primary input. Outside of any peak hours range
-    digitalWrite(relay1, 0);
+    digitalWrite(relay1, LOW);
     digitalWrite(relay2, 1);
     digitalWrite(relay5, 0);
     Serial.println("S1.1");
