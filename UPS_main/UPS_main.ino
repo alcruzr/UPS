@@ -3,12 +3,13 @@
 #include "Adafruit_ILI9341.h"
 #include <ZMPT101B.h>
 
-#define TFT_DC 9
-#define TFT_CS 10
-#define TFT_RST 8
+#define TFT_DC 49
+#define TFT_CS 53
+#define TFT_RST 48
 
-#define SENSITIVITYpri 136.25f
-#define SENSITIVITYsec 139.0f
+#define SENSITIVITYpri 138.0f//calibrated 4-10-24
+#define SENSITIVITYsec 141.75f//calibrated 4-10-24
+#define SENSITIVITYout 147.75f//calibrated 4-10-24
 
 
 
@@ -41,27 +42,32 @@ bool peak_hours = 0;//used to track if we are in peak hours range. 1 = true
 //int ph1_led = 8;//output pin
 //int ph2_led = 9;//output pin
 
-int relay1 = 5;
-int relay2 = 2;
-int relay4 = 3;
-int relay5 = 4;
+int relay1 = 22;
+int relay2 = 24;
+int relay4 = 26;
+int relay5 = 28;
 
-int batt_v_pin = A0;//input pin, change to analog pin for actuall readings
-int out_v_pin = A3;//input pin, change to analog pin for actuall readings
-int pri_v_pin = A2;//input pin, change to analog pin for actuall readings
+int batt_v_pin = A4;//input pin, change to analog pin for actuall readings
+int out_v_pin = A2;//input pin, change to analog pin for actuall readings
+int pri_v_pin = A0;//input pin, change to analog pin for actuall readings
 int sec_v_pin = A1;//input pin, change to analog pin for actuall readings
-int ph1_pin = 6;//for testing and demo only
-int ph2_pin = 7;//for testing and demo only
+int ph1_pin = 30;//for testing and demo only, yellow
+int ph2_pin = 32;//for testing and demo only, green
+
+int chargerState = 1;//keep charger off(0) for initial testing in box only
 
 
 ZMPT101B voltageSensorPri(pri_v_pin, 60.0);
 ZMPT101B voltageSensorSec(sec_v_pin, 60.0);
+ZMPT101B voltageSensorOut(sec_v_pin, 60.0);
 
 
 void setup() {
   Serial.begin(115200);
   voltageSensorPri.setSensitivity(SENSITIVITYpri);
   voltageSensorSec.setSensitivity(SENSITIVITYsec);
+  voltageSensorOut.setSensitivity(SENSITIVITYout);
+  
   displaySetup();
  
   pinMode(batt_v_pin, INPUT);//for testing purposes use pull down resistors on these four pins
@@ -76,8 +82,8 @@ void setup() {
   
   
   //For testing
-  pinMode(ph1_pin, INPUT);
-  pinMode(ph2_pin, INPUT);
+  pinMode(ph1_pin, INPUT_PULLUP);
+  pinMode(ph2_pin, INPUT_PULLUP);
 //  pinMode(pri_led, OUTPUT);
 //  pinMode(sec_led, OUTPUT);
 //  pinMode(batt_led, OUTPUT);
@@ -111,7 +117,7 @@ void setup() {
   digitalWrite(relay1, 0);
   digitalWrite(relay2, 1);
   digitalWrite(relay4, 1);
-  digitalWrite(relay5, 0);
+  digitalWrite(relay5, chargerState);//keep charger off(0) for initial testing in box only
 
   Serial.print("Initiating...");
   tft.fillScreen(ILI9341_BLACK);
@@ -129,7 +135,7 @@ void loop() {
   batt_v = get_vtgDC();
   pri_v = voltageSensorPri.getRmsVoltage();
   sec_v = voltageSensorSec.getRmsVoltage();
-
+  out_v = voltageSensorOut.getRmsVoltage();
   //for testing only, these three led's will get replaced by the voltages shown on the display
 //  digitalWrite(pri_led, pri_v);
 //  digitalWrite(sec_led, sec_v);
@@ -138,7 +144,6 @@ void loop() {
   //get output voltage
   //calculate output power, will need to measure output current
   //get current time
-  
   //display all info to display
   //tft.fillScreen(ILI9341_BLACK);
   tft.setCursor(0, 0);
@@ -151,52 +156,56 @@ void loop() {
   tft.setCursor(0, 100);
   tft.setTextColor(ILI9341_BLUE,ILI9341_BLACK);  tft.setTextSize(3);
   tft.print("Peak Hours Time:"); tft.print("4pm-8pm");
-
   //in the following if statements, we use simple inputs to simulate we are in peak hours mode. Actual code will compare the current time with the peak hours time range.
-  if(pri_v > ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using primary input. Outside of any peak hours range
-    digitalWrite(relay1, LOW);
+  if(pri_v > ac_ok && digitalRead(ph1_pin) == 1 && digitalRead(ph2_pin) == 1){//using primary input. Outside of any peak hours range
+    digitalWrite(relay1, 0);
     digitalWrite(relay2, 1);
-    digitalWrite(relay5, 0);
+    digitalWrite(relay5, chargerState);//
     Serial.println("S1.1");
+    delay(100);
     tft.setCursor(0, 75);
     tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
     tft.print("OUT:"); tft.print(out_v); tft.println("S1.1");
   }
 
-  else if(pri_v < ac_ok && sec_v > ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using secondary input. Outside of any peak hours range
+  else if(pri_v < ac_ok && sec_v > ac_ok && digitalRead(ph1_pin) == 1 && digitalRead(ph2_pin) == 1){//using secondary input. Outside of any peak hours range
     digitalWrite(relay1, 1);
-    digitalWrite(relay5, 0);
+    digitalWrite(relay5, chargerState);
     Serial.println("S2.1");
+    delay(100);
     tft.setCursor(0, 75);
     tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
     tft.print("OUT:"); tft.print(out_v); tft.println("S2.1");
   }
 
-  else if(pri_v < ac_ok && sec_v < ac_ok && digitalRead(ph1_pin) == 0 && digitalRead(ph2_pin) == 0){//using battery. Outside of any peak hours range
+  else if(pri_v < ac_ok && sec_v < ac_ok && digitalRead(ph1_pin) == 1 && digitalRead(ph2_pin) == 1){//using battery. Outside of any peak hours range
     digitalWrite(relay1, 1);//keep relay connected to primary input
-    digitalWrite(relay5, 0);
+    digitalWrite(relay5, chargerState);
     Serial.println("Batt1");
+    delay(100);
     tft.setCursor(0, 75);
     tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
     tft.print("OUT:"); tft.print(out_v); tft.println("Batt1");
   }
 
-  else if(digitalRead(ph1_pin) == 1){//in first half of peak hours. using battery
+  else if(digitalRead(ph1_pin) == 0){//in first half of peak hours. using battery
     digitalWrite(relay2, 0);
     Serial.println("Batt2");
+    delay(100);
     tft.setCursor(0, 75);
     tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
     tft.print("OUT:"); tft.print(out_v); tft.println("Batt2");
   }
 
-  else if(digitalRead(ph2_pin) == 1){//in second half of peak hours. 
+  else if(digitalRead(ph2_pin) == 0){//in second half of peak hours. 
     digitalWrite(relay1, 0);
     digitalWrite(relay2, 1);
-    digitalWrite(relay5, 1);//turn off charger
+    digitalWrite(relay5, 0);//turn off charger
     if(pri_v < ac_ok){
       if(sec_v < ac_ok){
         digitalWrite(relay1, 0);//keep relay 1 connected to primary
         Serial.println("Batt3");
+        delay(100);
         tft.setCursor(0, 75);
         tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
         tft.print("OUT:"); tft.print(out_v); tft.println("Batt3");
@@ -204,6 +213,7 @@ void loop() {
       else{
         digitalWrite(relay1, 1);//switch to secondary
         Serial.println("S2.2");
+        delay(100);
         tft.setCursor(0, 75);
         tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
         tft.print("OUT:"); tft.print(out_v); tft.println("S2.2");
@@ -211,12 +221,13 @@ void loop() {
     }
     else{
       Serial.println("S1.2");
+      delay(100);
       tft.setCursor(0, 75);
       tft.setTextColor(ILI9341_RED,ILI9341_BLACK);  tft.setTextSize(3);
       tft.print("OUT:"); tft.print(out_v); tft.println("S1.2");
     }
   }
-
+  
 
 
 
