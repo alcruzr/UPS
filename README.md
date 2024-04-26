@@ -16,6 +16,10 @@ The peak hours mode will serve as a way to help reduce consumer electricity cost
 * 7.5 Hours Approximate Battery Charge Time (from fully discharged)
 * Peak Hours Mode
 * Pure Sine Wave Output
+* Online UPS Topology
 
 # BOM
 The components used for the UPS system are listed in an excel file. The main components of the UPS system consisted of a step-down transformer, custom designed AC/DC rectifier, lithium battery, battery charger, inverter, and Arduino Mega 2560. PCB files are also available for the custom AC/DC rectifier. 
+
+# AC/DC Rectifier
+The rectifier for this UPS was custom designed to be able to support the required current. Included with the rectifier is a linear voltage regulator curcuit which was set to output 20A at 15.5V. 
