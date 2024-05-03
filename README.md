@@ -23,3 +23,6 @@ The components used for the UPS system are listed in an excel file. The main com
 
 # AC/DC Rectifier
 The rectifier for this UPS was custom designed to be able to support the required current. Included with the rectifier is a linear voltage regulator curcuit which was set to output 20A at 15.5V. 
+In order to be able to supply enough current for full 300W output, two rectifier boards had to be utilized. One rectifier supplies just the battery charger and the other supplies the inverter (see provided overall UPS schematics). Each rectifier board was tested up to 20A output. 
+
+IMPORTANT: when ordering PCB, make sure outer layer copper copper thickness is set to 2oz. 
