@@ -28,3 +28,8 @@ In order to be able to supply enough current for full 300W output, two rectifier
 The transistors were mounted onto a dedicated heatsink block with fans for cooling.
 
 IMPORTANT: when ordering PCB, make sure outer layer copper thickness is set to 2oz. 
+
+# Disclaimer
+High Voltage!
+The author / associates / owner of this project cannot be held responsible for any damages in the form of physical loss / monetary loss or any kind of loss that comes as the result of making projects that are presented in this website.
+
